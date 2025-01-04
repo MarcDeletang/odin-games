@@ -1,5 +1,6 @@
 package game
 
+import audio "audio"
 import "core:fmt"
 import rl "vendor:raylib"
 
@@ -71,6 +72,7 @@ check_for_tree :: proc() {
 					fmt.println("Tree found at:", adj_x, adj_y)
 					game_map[adj_y][adj_x] = TileType.TREE_CUT
 					logs_count += 1
+					audio.play_audio()
 					// Handle the action when a tree is found (e.g., print a message, pick up the tree, etc.)
 				}
 			}
@@ -129,15 +131,24 @@ update_screen_pos :: proc(last_move_time: f64) {
 
 
 main :: proc() {
-	monitor := rl.GetCurrentMonitor()
-	rl.InitWindow(800, 800, "Smooth Beaver Movement")
-	screen_height := 800
-	screen_width := 800
+	screen_height, screen_width := init_screen("Beaver game", true)
+	width_offset: i32 = 0
+
+	if screen_height > screen_width {
+		screen_height = screen_width
+	}
+	if screen_width > screen_height {
+		width_offset = (screen_width - screen_height) / 2
+		screen_width = screen_height
+	}
+	fmt.println("width_offset", width_offset)
 	tile_height := cast(f32)screen_height / 64
 	tile_width := cast(f32)screen_width / 64
 	size := rl.Vector2{cast(f32)tile_width, cast(f32)tile_height}
 
 	init()
+	init_overlay()
+	audio.init_audio()
 
 	last_move_time := rl.GetTime()
 	for !rl.WindowShouldClose() {
@@ -154,7 +165,7 @@ main :: proc() {
 		// Render the tiles
 		for y in 0 ..< MAP_SIZE {
 			for x in 0 ..< MAP_SIZE {
-				tile_x := cast(f32)x * tile_width
+				tile_x := cast(f32)x * tile_width + f32(width_offset)
 				tile_y := cast(f32)y * tile_height
 				rl.DrawRectangleV({tile_x, tile_y}, size, color_mapping[game_map[y][x]])
 			}
@@ -163,7 +174,13 @@ main :: proc() {
 		// Calculate the smooth beaver screen position
 		tile_x := screen_pos.x * tile_width
 		tile_y := screen_pos.y * tile_height
-		rl.DrawRectangleV({tile_x, tile_y}, size, beaver_color)
+		rl.DrawCircleV(
+			{tile_x + tile_height / 2 + f32(width_offset), tile_y - (tile_height / 3)},
+			tile_width / 2.2,
+			beaver_color,
+		)
+		rl.DrawRectangleV({tile_x + f32(width_offset), tile_y}, size, beaver_color)
+		display_overlay()
 
 		rl.EndDrawing()
 	}
